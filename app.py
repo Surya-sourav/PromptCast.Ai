@@ -9,6 +9,8 @@ import os
 from fpdf import FPDF
 import tempfile
 from pydub import AudioSegment
+import time  # Required for time delays during retries
+import io  # Required for handling in-memory audio files
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -142,7 +144,7 @@ def text_to_speech(script):
             except requests.RequestException as e:
                 if attempt < 9:
                     logger.info(f"Model is loading. Retrying in 10 seconds...")
-                    time.sleep(10)
+                    time.sleep(10)  # Delay between retries, use `time.sleep()`
                 else:
                     raise Exception("Model loading timeout or other error.")
             except Exception as e:
@@ -219,5 +221,5 @@ def generate_audio():
         logger.error(f"Error in generate_audio: {e}")
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+# if __name__ == '__main__':
+#     app.run(debug=True, port=5000)
