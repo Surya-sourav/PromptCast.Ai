@@ -5,7 +5,6 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install system dependencies (including ffmpeg)
-# '-o APT::Sandbox::User=root' helps avoid permission errors in some environments.
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     && apt-get install -y ffmpeg \
