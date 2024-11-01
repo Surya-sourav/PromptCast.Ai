@@ -121,11 +121,12 @@ def text_to_speech(script):
     chunks = [script[i:i+max_chunk_length] for i in range(0, len(script), max_chunk_length)]
     
     combined_audio = AudioSegment.empty()
-    for chunk in chunks:
+    for chunk_index, chunk in enumerate(chunks):
         payload = {"inputs": chunk}
-        for attempt in range(10):
+        for attempt in range(10):  # Allow for more retries
             try:
-                response = requests.post(API_URL, headers=headers, json=payload)
+                logger.info(f"Processing chunk {chunk_index + 1}/{len(chunks)} (attempt {attempt + 1}/10)")
+                response = requests.post(API_URL, headers=headers, json=payload, timeout=60)  # Adding timeout per request
                 response.raise_for_status()
 
                 audio_bytes = response.content
@@ -141,14 +142,17 @@ def text_to_speech(script):
 
                 combined_audio += audio_segment
                 break
+            except requests.Timeout:
+                logger.warning(f"Timeout occurred for chunk {chunk_index + 1}. Retrying in 15 seconds...")
+                time.sleep(15)  # Increase wait time for retry
             except requests.RequestException as e:
                 if attempt < 9:
-                    logger.info(f"Model is loading. Retrying in 10 seconds...")
-                    time.sleep(10)  # Delay between retries, use `time.sleep()`
+                    logger.info(f"Error with chunk {chunk_index + 1}, attempt {attempt + 1}. Retrying in 10 seconds...")
+                    time.sleep(10)
                 else:
-                    raise Exception("Model loading timeout or other error.")
+                    raise Exception(f"Model loading timeout or other error: {e}")
             except Exception as e:
-                logger.error(f"Error processing TTS for chunk: {e}")
+                logger.error(f"Error processing TTS for chunk {chunk_index + 1}: {e}")
                 raise
     
     if combined_audio.duration_seconds > 0:
