@@ -19,8 +19,8 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
 # API Configuration (ensure you set these in environment variables in deployment)
-os.environ["CEREBRAS_API_KEY"] = "csk-your-cerebras-api-key"
-HUGGINGFACE_API_TOKEN = "hf-your-hugging-face-token"
+os.environ["CEREBRAS_API_KEY"] = "csk-mckj2jpdthdv9cypr5yk6r58j2ywxncvtdv43w8wftj6k8vk"
+HUGGINGFACE_API_TOKEN = "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"
 
 # Helper function to scrape content
 def scrape_content(topic, num_results=3, max_chars=1500):
