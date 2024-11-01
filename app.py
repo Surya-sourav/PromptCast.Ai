@@ -80,9 +80,6 @@ Include:
 - A brief conclusion
 """
 
-system_prompt = "You are a professional podcast script writer. Create the script in a natural and engaging manner, without any unnecessary introductions like 'Here's your script'."
-
-
 
         response = client.chat.completions.create(
             messages=[
