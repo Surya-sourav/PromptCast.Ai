@@ -6,15 +6,15 @@ RUN apt-get update && apt-get install -y ffmpeg
 # Set working directory
 WORKDIR /app
 
-# Copy requirements.txt and install dependencies
+# Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
+# Copy application code
 COPY . .
 
-# Set the environment variable to production
-ENV FLASK_ENV=production
+# Expose port
+EXPOSE 5000
 
-# Run the application using Gunicorn
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "sync", "--timeout", "300"]
+# Run the application
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "gevent", "--timeout", "300"]
