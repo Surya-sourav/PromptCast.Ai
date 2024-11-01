@@ -1,3 +1,4 @@
+# Use the official Python image
 FROM python:3.9-slim
 
 # Install system dependencies
@@ -17,4 +18,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "gevent", "--timeout", "300"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "gevent", "--workers", "3", "--timeout", "300"]
