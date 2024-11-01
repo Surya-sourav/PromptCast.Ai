@@ -7,7 +7,6 @@ import logging
 from cerebras.cloud.sdk import Cerebras
 import os
 from fpdf import FPDF
-import io
 import tempfile
 from pydub import AudioSegment
 
@@ -19,12 +18,11 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
-# Cerebras API configuration
-os.environ["CEREBRAS_API_KEY"] = "csk-mckj2jpdthdv9cypr5yk6r58j2ywxncvtdv43w8wftj6k8vk"
+# API Configuration (ensure you set these in environment variables in deployment)
+os.environ["CEREBRAS_API_KEY"] = "csk-your-cerebras-api-key"
+HUGGINGFACE_API_TOKEN = "hf-your-hugging-face-token"
 
-# Hugging Face API configuration
-HUGGINGFACE_API_TOKEN = "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"  # Replace with your actual Hugging Face API token
-
+# Helper function to scrape content
 def scrape_content(topic, num_results=3, max_chars=1500):
     search_url = f"https://www.google.com/search?q={quote_plus(topic)}&num={num_results}"
     headers = {
@@ -33,6 +31,7 @@ def scrape_content(topic, num_results=3, max_chars=1500):
 
     try:
         response = requests.get(search_url, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
         soup = BeautifulSoup(response.text, 'html.parser')
         search_results = soup.find_all('div', class_='yuRUbf')
         
@@ -44,6 +43,7 @@ def scrape_content(topic, num_results=3, max_chars=1500):
             url = result.find('a')['href']
             try:
                 page_response = requests.get(url, headers=headers, timeout=5)
+                page_response.raise_for_status()
                 page_soup = BeautifulSoup(page_response.text, 'html.parser')
                 
                 paragraphs = page_soup.find_all('p')
@@ -54,15 +54,16 @@ def scrape_content(topic, num_results=3, max_chars=1500):
                         if len(content) >= max_chars:
                             break
                         
-            except Exception as e:
+            except requests.RequestException as e:
                 logger.error(f"Error scraping {url}: {e}")
                 continue
         
         return content[:max_chars]
-    except Exception as e:
+    except requests.RequestException as e:
         logger.error(f"Error during scraping: {e}")
         return ""
 
+# Helper function to generate podcast script
 def generate_podcast_script(content, topic):
     try:
         client = Cerebras()
@@ -79,8 +80,6 @@ Include:
 - 2-3 key points related to the topic
 - A brief conclusion
 """
-
-
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -91,13 +90,12 @@ Include:
             temperature=0.7,
             top_p=1
         )
-
         return response.choices[0].message.content
-
     except Exception as e:
         logger.error(f"Error generating script: {e}")
-        raise
+        return "Error generating script."
 
+# Helper function to create PDF
 def create_pdf(script, topic):
     pdf = FPDF()
     pdf.add_page()
@@ -112,60 +110,53 @@ def create_pdf(script, topic):
     
     return pdf.output(dest='S').encode('latin-1', errors='ignore')
 
-import time
-
-def text_to_speech(script, voice):
-    import time
-    import io
-    from pydub import AudioSegment
-
+# Helper function for Text-to-Speech
+def text_to_speech(script):
     API_URL = "https://api-inference.huggingface.co/models/espnet/kan-bayashi_ljspeech_vits"
     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_TOKEN}"}
     
-    max_chunk_length = 500  # Adjust as needed
+    max_chunk_length = 500
     chunks = [script[i:i+max_chunk_length] for i in range(0, len(script), max_chunk_length)]
     
     combined_audio = AudioSegment.empty()
-    
     for chunk in chunks:
         payload = {"inputs": chunk}
-        max_retries = 10
-        retry_delay = 10
+        for attempt in range(10):
+            try:
+                response = requests.post(API_URL, headers=headers, json=payload)
+                response.raise_for_status()
 
-        for attempt in range(max_retries):
-            response = requests.post(API_URL, headers=headers, json=payload)
-            
-            if response.status_code == 200:
+                audio_bytes = response.content
                 content_type = response.headers.get('Content-Type', '')
-                logger.info(f"Received content-type: {content_type}")
 
-                audio_bytes = io.BytesIO(response.content)
+                audio_segment = None
                 if 'audio/flac' in content_type:
-                    audio_segment = AudioSegment.from_file(audio_bytes, format="flac")
+                    audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format="flac")
                 elif 'audio/wav' in content_type:
-                    audio_segment = AudioSegment.from_file(audio_bytes, format="wav")
+                    audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
                 else:
-                    # Attempt to detect format automatically
-                    audio_segment = AudioSegment.from_file(audio_bytes)
+                    audio_segment = AudioSegment.from_file(io.BytesIO(audio_bytes))
+
                 combined_audio += audio_segment
                 break
-            elif response.status_code == 503:
-                if attempt < max_retries - 1:
-                    logger.info(f"Model is loading. Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
+            except requests.RequestException as e:
+                if attempt < 9:
+                    logger.info(f"Model is loading. Retrying in 10 seconds...")
+                    time.sleep(10)
                 else:
-                    raise Exception("Model loading timeout. Please try again later.")
-            else:
-                logger.error(f"Error in TTS API: {response.status_code} - {response.text}")
-                raise Exception(f"Error in TTS API: {response.text}")
-        
+                    raise Exception("Model loading timeout or other error.")
+            except Exception as e:
+                logger.error(f"Error processing TTS for chunk: {e}")
+                raise
+    
     if combined_audio.duration_seconds > 0:
         output_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3').name
         combined_audio.export(output_file, format="mp3")
         return output_file
     else:
-        raise Exception("No audio was generated")
+        raise Exception("No audio was generated.")
 
+# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -179,19 +170,12 @@ def generate_podcast():
         if not topic:
             return jsonify({'error': 'No topic provided'}), 400
 
-        # Step 1: Scrape content
-        logger.info(f"Scraping content for topic: {topic}")
         scraped_content = scrape_content(topic)
-        
         if not scraped_content:
             return jsonify({'error': 'No content found for the topic'}), 404
 
-        # Step 2: Generate podcast script
-        logger.info("Generating podcast script")
         podcast_script = generate_podcast_script(scraped_content, topic)
-        
         return jsonify({'script': podcast_script})
-
     except Exception as e:
         logger.error(f"Error: {e}")
         return jsonify({'error': str(e)}), 500
@@ -202,6 +186,7 @@ def download_pdf():
         data = request.get_json()
         script = data.get('script')
         topic = data.get('topic')
+
         if not script or not topic:
             return jsonify({'error': 'Script or topic not provided'}), 400
         
@@ -209,10 +194,7 @@ def download_pdf():
         return Response(
             pdf,
             mimetype='application/pdf',
-            headers={
-                'Content-Disposition': f'attachment; filename={topic.replace(" ", "_")}_podcast_script.pdf',
-                'Content-Type': 'application/pdf'
-            }
+            headers={'Content-Disposition': f'attachment; filename={topic.replace(" ", "_")}_podcast_script.pdf'}
         )
     except Exception as e:
         logger.error(f"Error in download_pdf: {e}")
@@ -223,14 +205,13 @@ def generate_audio():
     try:
         data = request.get_json()
         script = data.get('script')
-        voice = data.get('voice', 'female')  # Note: The Hugging Face model doesn't support voice selection, but we keep this for future extensibility
         if not script:
             return jsonify({'error': 'Script not provided'}), 400
         
-        audio_file = text_to_speech(script, voice)
+        audio_file = text_to_speech(script)
         return send_file(
             audio_file,
-            mimetype='audio/wav' if audio_file.endswith('.wav') else 'audio/mp3',
+            mimetype='audio/mp3',
             as_attachment=True,
             download_name='podcast_audio.mp3'
         )
