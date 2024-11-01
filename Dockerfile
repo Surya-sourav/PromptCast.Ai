@@ -1,24 +1,20 @@
-# Use an official Python runtime as a base image
 FROM python:3.9-slim
 
-# Set the working directory in the container
+# Install system dependencies
+RUN apt-get update && apt-get install -y ffmpeg
+
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies (including ffmpeg)
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && apt-get install -y ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy requirements.txt and install dependencies
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
-# Copy the rest of the application code into the container
-COPY . /app
+# Copy application files
+COPY . .
 
-# Expose the port on which the app will run
-EXPOSE 5000
+# Set the environment variable to production
+ENV FLASK_ENV=production
 
-# Run the application
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "gevent", "--timeout", "120"]
+# Run the application using Gunicorn
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "sync", "--timeout", "300"]
