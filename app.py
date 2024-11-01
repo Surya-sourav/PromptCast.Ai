@@ -68,18 +68,20 @@ def generate_podcast_script(content, topic):
         client = Cerebras()
 
         system_prompt = "You are a professional podcast script writer. Create a concise, engaging 3-minute podcast script without timestamps or stage directions."
-        user_prompt = f"""Topic: {topic}
+        user_prompt = f"""Create a podcast script about the topic: {topic}.
 
-Based on the following research, create a brief podcast script. Focus on the most interesting points and maintain a conversational tone.
+The script should be concise, engaging, and conversational. Use the following information to craft the podcast:
 
-Research: {content}
+{content}
 
-Format the script with:
-1. An engaging introduction
-2. 2-3 main points
-3. A brief conclusion
+Include:
+- An engaging introduction
+- 2-3 key points related to the topic
+- A brief conclusion
+"""
 
-Please do not include timestamps or any annotations that are not part of the spoken script."""
+system_prompt = "You are a professional podcast script writer. Create the script in a natural and engaging manner, without any unnecessary introductions like 'Here's your script'."
+
 
 
         response = client.chat.completions.create(
