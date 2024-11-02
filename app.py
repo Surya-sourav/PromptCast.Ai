@@ -25,8 +25,8 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 
 # API Configuration
-CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY', 'csk-mckj2jpdthdv9cypr5yk6r58j2ywxncvtdv43w8wftj6k8vk')
-HUGGINGFACE_API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN', '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')
+CEREBRAS_API_KEY = os.getenv('CEREBRAS_API_KEY', '')
+HUGGINGFACE_API_TOKEN = os.getenv('HUGGINGFACE_API_TOKEN', '')
 
 if not CEREBRAS_API_KEY or not HUGGINGFACE_API_TOKEN:
     logger.error("Missing required API keys in environment variables")
