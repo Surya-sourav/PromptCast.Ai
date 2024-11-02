@@ -1,18 +1,25 @@
-# Use Python slim image
 FROM python:3.9-slim
 
-# Install ffmpeg
-RUN apt-get update && apt-get install -y ffmpeg
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ffmpeg \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy requirements and install dependencies
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your application code
+# Copy application code
 COPY . .
 
-# Start Gunicorn server with gevent worker
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--worker-class", "gevent", "--workers", "1", "--timeout", "300"]
+# Set environment variables
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
+
+# Use the PORT environment variable
+CMD gunicorn --bind 0.0.0.0:$PORT --worker-class gevent --workers 1 --timeout 300 app:app
