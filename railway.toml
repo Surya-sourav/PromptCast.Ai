@@ -1,0 +1,8 @@
+[build]
+builder = "Dockerfile"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = ""
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
