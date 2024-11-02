@@ -5,6 +5,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ffmpeg \
     build-essential \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -21,5 +22,5 @@ COPY . .
 ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 
-# Use the PORT environment variable
-CMD gunicorn --bind 0.0.0.0:$PORT --worker-class gevent --workers 1 --timeout 300 app:app
+# The $PORT environment variable is provided by Railway
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --worker-class gevent --workers 1 --timeout 300
