@@ -1,6 +1,6 @@
 # PromptCast.ai 🎙️ AI-Powered Podcast Creation
 
-![PromptCast.ai Logo](https://hebbkx1anhila5yf.public.blob.vercel-storage.com/promptcast-logo-RISpm4o3hqvNtOXHc4rSgdr6br2qMV.png)
+![PromptCast.ai](https://web-production-3fcf.up.railway.app/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.9-blue.svg)](https://www.python.org/downloads/release/python-390/)
